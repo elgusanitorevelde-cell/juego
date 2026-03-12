@@ -280,22 +280,3 @@ def pantalla_juego():
                     f'**{color}**: {n} delegados ({pct}%)',
                     unsafe_allow_html=True
                 )
-
-# ══════════════════════════════════════════════
-# PUNTO DE ENTRADA
-# ══════════════════════════════════════════════
-if "en_juego" not in st.session_state:
-    st.session_state.en_juego = False
-
-if st.session_state.en_juego:
-    pantalla_juego()
-else:
-    pantalla_inicio()
-
----
-
-También actualiza `requirements.txt` con esto:
-```
-streamlit
-matplotlib
-numpy
