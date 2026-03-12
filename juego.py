@@ -55,22 +55,13 @@ def dibujar_hemiciclo(conteo, total, titulo):
             ax.plot(x, y, "o",
                     color=escanos[idx],
                     markersize=6 - f * 0.3,
-                    markeredgewidth=0.3,
-                    markeredgecolor="#999999")
+                    markeredgewidth=0.8,
+                    markeredgecolor="black")
             idx += 1
-
-    # Leyenda
-    parches = []
-    for color in COLORES:
-        if conteo.get(color, 0) > 0:
-            parches.append(mpatches.Patch(color=COLOR_HEX[color], label=f"{color}: {conteo.get(color,0)}"))
-    ax.legend(handles=parches, loc="lower center", ncol=3,
-              fontsize=8, framealpha=0.8, bbox_to_anchor=(0.5, -0.05))
 
     ax.set_title(titulo, color="black", fontsize=13, pad=10)
     ax.set_xlim(-1.1, 1.1)
-    ax.set_ylim(-0.2, 1.1)
-
+    ax.set_ylim(-0.15, 1.1)
     return fig
 
 # ══════════════════════════════════════════════
@@ -86,54 +77,70 @@ st.markdown("""
     <style>
     /* Fondo oscuro general */
     .stApp {
-        background-color: #1a1a2e;
+        background-color: #0f0f1a;
         color: #e0e0e0;
     }
-    /* Título */
+    /* Fondo oscuro en contenedores */
+    .block-container {
+        background-color: #0f0f1a;
+    }
+    /* Pestañas */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #1a1a2e;
+        border-radius: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #aaaaaa;
+    }
+    .stTabs [aria-selected="true"] {
+        color: white;
+        background-color: #2e2e4e;
+        border-radius: 6px;
+    }
+    /* Título principal */
     .titulo-juego {
         font-size: 3rem;
         font-weight: bold;
         text-align: center;
-        color: #e0e0e0;
+        color: white;
         letter-spacing: 0.2em;
         padding: 2rem 0 0.3rem 0;
+        text-transform: uppercase;
     }
     .subtitulo {
         text-align: center;
         color: #888888;
         font-size: 1rem;
-        margin-bottom: 3rem;
+        margin-bottom: 2.5rem;
         letter-spacing: 0.1em;
-    }
-    /* Pestañas */
-    .stTabs [data-baseweb="tab"] {
-        color: #aaaaaa;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #ffffff;
-        border-bottom: 2px solid #4a90d9;
     }
     /* Botones */
     .stButton > button {
-        background-color: #16213e;
-        color: #e0e0e0;
-        border: 1px solid #4a90d9;
+        background-color: #1e1e3e;
+        color: white;
+        border: 1px solid #444466;
         border-radius: 6px;
     }
     .stButton > button:hover {
-        background-color: #4a90d9;
-        color: white;
+        background-color: #2e2e5e;
+        border-color: #6666aa;
     }
-    /* Métricas y texto */
-    .stMetric {
-        background-color: #16213e;
-        border-radius: 8px;
-        padding: 0.5rem;
-    }
-    /* Expander */
-    .streamlit-expanderHeader {
-        background-color: #16213e;
+    /* Noticia */
+    .noticia-box {
+        background-color: #1a1a2e;
+        border-left: 4px solid #e74c3c;
+        padding: 0.8rem 1rem;
+        border-radius: 4px;
+        margin-bottom: 0.8rem;
         color: #e0e0e0;
+    }
+    /* Ranura de guardado */
+    .ranura-box {
+        background-color: #1a1a2e;
+        border: 1px solid #333355;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -147,29 +154,12 @@ def inicializar_ranuras():
     if "ranura_2" not in st.session_state:
         st.session_state.ranura_2 = None
 
-def etiqueta_ranura(ranura):
+def info_ranura(ranura):
     if ranura is None:
-        return "— Vacía —"
+        return "Vacía"
     turno = ranura["tiempo"]["turno"]
     fecha = turno_a_fecha(turno)["texto"]
     return f"Turno {turno} — {fecha}"
-
-def guardar_en_ranura(estado, numero):
-    if numero == 1:
-        st.session_state.ranura_1 = estado
-    else:
-        st.session_state.ranura_2 = estado
-
-def cargar_ranura(numero):
-    if numero == 1:
-        return st.session_state.ranura_1
-    return st.session_state.ranura_2
-
-def borrar_ranura(numero):
-    if numero == 1:
-        st.session_state.ranura_1 = None
-    else:
-        st.session_state.ranura_2 = None
 
 # ══════════════════════════════════════════════
 # PANTALLA DE INICIO
@@ -177,56 +167,135 @@ def borrar_ranura(numero):
 def pantalla_inicio():
     inicializar_ranuras()
 
-    st.markdown('<div class="titulo-juego">POLITICAL INTERACTIVE</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitulo">SIMULADOR POLÍTICO</div>', unsafe_allow_html=True)
+    st.markdown('<div class="titulo-juego">Political Interactive</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitulo">Simulador político</div>', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1.5, 1, 1.5])
+    col1, col2, col3 = st.columns([1.5, 2, 1.5])
     with col2:
-        if st.button("▶️ Nueva partida", use_container_width=True):
+
+        # ── Iniciar partida ──
+        if st.button("▶️ Iniciar nueva partida", use_container_width=True):
             st.session_state.estado   = inicializar_juego()
             st.session_state.en_juego = True
             st.rerun()
 
-    st.markdown("---")
-    st.markdown("#### 💾 Partidas guardadas")
+        st.markdown("---")
 
-    col_r1, col_r2 = st.columns(2)
-
-    # ── Ranura 1 ──
-    with col_r1:
-        st.markdown(f"**Ranura 1:** {etiqueta_ranura(st.session_state.ranura_1)}")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("📂 Cargar", key="cargar_1",
+        # ── Ranura 1 ──
+        st.markdown(
+            f'<div class="ranura-box">💾 <b>Ranura 1</b> — {info_ranura(st.session_state.ranura_1)}</div>',
+            unsafe_allow_html=True
+        )
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("📂 Cargar Ranura 1",
                          disabled=st.session_state.ranura_1 is None,
                          use_container_width=True):
-                st.session_state.estado   = cargar_ranura(1)
+                st.session_state.estado   = st.session_state.ranura_1
                 st.session_state.en_juego = True
                 st.rerun()
-        with c2:
-            if st.button("🗑️ Borrar", key="borrar_1",
+        with col_b:
+            if st.button("🗑️ Borrar Ranura 1",
                          disabled=st.session_state.ranura_1 is None,
                          use_container_width=True):
-                borrar_ranura(1)
+                st.session_state.ranura_1 = None
                 st.rerun()
 
-    # ── Ranura 2 ──
-    with col_r2:
-        st.markdown(f"**Ranura 2:** {etiqueta_ranura(st.session_state.ranura_2)}")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("📂 Cargar", key="cargar_2",
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Ranura 2 ──
+        st.markdown(
+            f'<div class="ranura-box">💾 <b>Ranura 2</b> — {info_ranura(st.session_state.ranura_2)}</div>',
+            unsafe_allow_html=True
+        )
+        col_c, col_d = st.columns(2)
+        with col_c:
+            if st.button("📂 Cargar Ranura 2",
                          disabled=st.session_state.ranura_2 is None,
                          use_container_width=True):
-                st.session_state.estado   = cargar_ranura(2)
+                st.session_state.estado   = st.session_state.ranura_2
                 st.session_state.en_juego = True
                 st.rerun()
-        with c2:
-            if st.button("🗑️ Borrar", key="borrar_2",
+        with col_d:
+            if st.button("🗑️ Borrar Ranura 2",
                          disabled=st.session_state.ranura_2 is None,
                          use_container_width=True):
-                borrar_ranura(2)
+                st.session_state.ranura_2 = None
                 st.rerun()
+
+# ══════════════════════════════════════════════
+# NOTICIAS ELECTORALES
+# ══════════════════════════════════════════════
+def mostrar_noticias(estado):
+    log = estado.get("log", [])
+    noticias = [l for l in log if "Elección" in l or "elección" in l
+                or "Diputados" in l or "Senadores" in l or "Delegados" in l
+                or "Presidente" in l]
+
+    if not noticias:
+        st.markdown("_Sin noticias electorales aún._")
+        return
+
+    # Última noticia destacada
+    ultima = noticias[-1]
+    st.markdown(
+        f'<div class="noticia-box">📰 <b>Noticias de última hora:</b> {ultima}</div>',
+        unsafe_allow_html=True
+    )
+
+    # Resultados de diputados
+    conteo_d = estado.get("conteo_diputados", {})
+    if any(v > 0 for v in conteo_d.values()):
+        st.markdown("**🏠 Diputados obtenidos por color:**")
+        for color in COLORES:
+            n = conteo_d.get(color, 0)
+            if n > 0:
+                hex_c = COLOR_HEX[color]
+                pct   = round(n / 150 * 100, 1)
+                st.markdown(
+                    f'<span style="color:{hex_c};">⬤</span> '
+                    f'**{color}**: {n} diputados ({pct}%)',
+                    unsafe_allow_html=True
+                )
+
+    # Resultados de senadores
+    conteo_s = estado.get("conteo_senadores", {})
+    total_s  = sum(conteo_s.values())
+    if total_s > 0:
+        st.markdown("**🏛️ Senadores obtenidos por color:**")
+        for color in COLORES:
+            n = conteo_s.get(color, 0)
+            if n > 0:
+                hex_c = COLOR_HEX[color]
+                pct   = round(n / 60 * 100, 1)
+                st.markdown(
+                    f'<span style="color:{hex_c};">⬤</span> '
+                    f'**{color}**: {n} senadores ({pct}%)',
+                    unsafe_allow_html=True
+                )
+
+    # Resultados de delegados
+    conteo_del = {c: 0 for c in COLORES}
+    for p in estado["provincias"]:
+        for cargo in ["delegado_A", "delegado_B", "delegado_C"]:
+            d = p.get(cargo)
+            if d:
+                color = d.split("(")[-1].replace(")", "").strip()
+                if color in conteo_del:
+                    conteo_del[color] += 1
+    total_del = sum(conteo_del.values())
+    if total_del > 0:
+        st.markdown("**🗳️ Delegados obtenidos por color:**")
+        for color in COLORES:
+            n = conteo_del.get(color, 0)
+            if n > 0:
+                hex_c = COLOR_HEX[color]
+                pct   = round(n / 90 * 100, 1)
+                st.markdown(
+                    f'<span style="color:{hex_c};">⬤</span> '
+                    f'**{color}**: {n} delegados ({pct}%)',
+                    unsafe_allow_html=True
+                )
 
 # ══════════════════════════════════════════════
 # PANTALLA DE JUEGO
@@ -238,31 +307,33 @@ def pantalla_juego():
     fecha  = turno_a_fecha(turno)["texto"]
 
     # ── Barra superior ──
-    col_t, col_f, col_av, col_g1, col_g2, col_sal = st.columns([2, 2, 1, 1, 1, 1])
-    with col_t:
-        st.markdown("### 🏛️ POLITICAL INTERACTIVE")
-    with col_f:
+    col_titulo, col_turno, col_acciones = st.columns([3, 2, 3])
+    with col_titulo:
+        st.markdown("### 🏛️ Political Interactive")
+    with col_turno:
         st.markdown(f"**Turno {turno}** — {fecha}")
-    with col_av:
-        if st.button("▶️ Avanzar", use_container_width=True):
-            st.session_state.estado = avanzar_turno(estado)
-            st.rerun()
-    with col_g1:
-        if st.button("💾 Ranura 1", use_container_width=True):
-            guardar_en_ranura(estado, 1)
-            st.success("Guardado en Ranura 1")
-    with col_g2:
-        if st.button("💾 Ranura 2", use_container_width=True):
-            guardar_en_ranura(estado, 2)
-            st.success("Guardado en Ranura 2")
-    with col_sal:
-        if st.button("🚪 Salir", use_container_width=True):
-            st.session_state.en_juego = False
-            st.rerun()
+    with col_acciones:
+        col_a, col_b, col_c, col_d, col_e = st.columns(5)
+        with col_a:
+            if st.button("▶️", help="Avanzar turno"):
+                st.session_state.estado = avanzar_turno(estado)
+                st.rerun()
+        with col_b:
+            if st.button("💾1", help="Guardar en Ranura 1"):
+                st.session_state.ranura_1 = estado
+                st.success("Guardado en Ranura 1.")
+        with col_c:
+            if st.button("💾2", help="Guardar en Ranura 2"):
+                st.session_state.ranura_2 = estado
+                st.success("Guardado en Ranura 2.")
+        with col_d:
+            if st.button("🚪", help="Salir al menú"):
+                st.session_state.en_juego = False
+                st.rerun()
 
     st.divider()
 
-    # ── Pestañas ──
+    # ── Pestañas principales ──
     tab1, tab2 = st.tabs(["🏠 Oficina Presidencial", "🏛️ Congreso"])
 
     # ══════════════════════════════
@@ -271,13 +342,12 @@ def pantalla_juego():
     with tab1:
         presidente = estado["pais"].get("presidente", "Sin designar")
         st.markdown(f"### {presidente}")
-
         st.divider()
 
-        # ── Próximas elecciones ──
+        # Próximas elecciones
         st.markdown("#### 📆 Próximas elecciones")
         proximos = proximos_eventos(turno, estado["provincias"], cantidad=4)
-        nombres_evento = {
+        nombres  = {
             "diputados":  "Diputados",
             "senadores":  "Senadores",
             "delegados":  "Delegados",
@@ -285,33 +355,26 @@ def pantalla_juego():
         }
         for evento in proximos:
             tipos = evento["eventos"]
-            tipos_texto = []
-            for k, v in tipos.items():
-                if k == "senadores" and v:
-                    tipos_texto.append("Senadores")
-                elif v and k != "senadores":
-                    tipos_texto.append(nombres_evento[k])
+            tipos_texto = ", ".join(
+                nombres[k] for k, v in tipos.items()
+                if (v and k != "senadores") or (k == "senadores" and v)
+            )
             faltan = evento["turno"] - turno
             st.markdown(
-                f"- **{evento['fecha']}** "
-                f"(Turno {evento['turno']}, faltan **{faltan} turnos**): "
-                f"{', '.join(tipos_texto)}"
+                f"- **{evento['fecha']}** — "
+                f"Turno {evento['turno']} "
+                f"(faltan **{faltan} turnos**): {tipos_texto}"
             )
 
         st.divider()
 
-        # ── Historial: solo último turno ──
-        with st.expander("📜 Historial del último turno", expanded=True):
-            log = estado.get("log", [])
-            if log:
-                # Mostrar solo las entradas del último turno
-                ultimo_bloque = []
-                for entrada in reversed(log):
-                    ultimo_bloque.append(entrada)
-                    if entrada.startswith("Turno") and len(ultimo_bloque) > 1:
-                        break
-                for entrada in reversed(ultimo_bloque):
-                    st.markdown(f"- {entrada}")
+        # Historial con noticias electorales expandible
+        with st.expander("📰 Noticias y resultados electorales", expanded=True):
+            mostrar_noticias(estado)
+
+        with st.expander("📜 Historial completo de eventos"):
+            for entrada in reversed(estado["log"]):
+                st.markdown(f"- {entrada}")
 
     # ══════════════════════════════
     # PESTAÑA 2: CONGRESO
@@ -321,19 +384,19 @@ def pantalla_juego():
         # ── Diputados ──
         st.markdown("### 🏠 Cámara de Diputados — 150 escaños")
         conteo_d = estado["conteo_diputados"]
-        col_h, col_l = st.columns([2, 1])
-        with col_h:
+        col_hem, col_ley = st.columns([2, 1])
+        with col_hem:
             fig_d = dibujar_hemiciclo(conteo_d, 150, "Cámara de Diputados")
             st.pyplot(fig_d)
-        with col_l:
+        with col_ley:
             st.markdown("**Composición**")
             for color in COLORES:
-                n   = conteo_d.get(color, 0)
-                pct = round(n / 150 * 100, 1)
+                n     = conteo_d.get(color, 0)
+                pct   = round(n / 150 * 100, 1)
                 hex_c = COLOR_HEX[color]
                 st.markdown(
                     f'<span style="color:{hex_c};">⬤</span> '
-                    f'**{color}**: {n} escaños ({pct}%)',
+                    f'**{color}**: {n} ({pct}%)',
                     unsafe_allow_html=True
                 )
 
@@ -342,19 +405,47 @@ def pantalla_juego():
         # ── Senadores ──
         st.markdown("### 🏛️ Senado — 60 escaños")
         conteo_s = estado["conteo_senadores"]
-        col_h2, col_l2 = st.columns([2, 1])
-        with col_h2:
+        col_hem2, col_ley2 = st.columns([2, 1])
+        with col_hem2:
             fig_s = dibujar_hemiciclo(conteo_s, 60, "Senado")
             st.pyplot(fig_s)
-        with col_l2:
+        with col_ley2:
             st.markdown("**Composición**")
             for color in COLORES:
-                n   = conteo_s.get(color, 0)
-                pct = round(n / 60 * 100, 1) if n > 0 else 0
+                n     = conteo_s.get(color, 0)
+                pct   = round(n / 60 * 100, 1) if n > 0 else 0
                 hex_c = COLOR_HEX[color]
                 st.markdown(
                     f'<span style="color:{hex_c};">⬤</span> '
-                    f'**{color}**: {n} escaños ({pct}%)',
+                    f'**{color}**: {n} ({pct}%)',
+                    unsafe_allow_html=True
+                )
+
+        st.divider()
+
+        # ── Delegados ──
+        st.markdown("### 🗳️ Delegados — 90 delegados")
+        conteo_del = {c: 0 for c in COLORES}
+        for p in estado["provincias"]:
+            for cargo in ["delegado_A", "delegado_B", "delegado_C"]:
+                d = p.get(cargo)
+                if d:
+                    color = d.split("(")[-1].replace(")", "").strip()
+                    if color in conteo_del:
+                        conteo_del[color] += 1
+        col_hem3, col_ley3 = st.columns([2, 1])
+        with col_hem3:
+            fig_del = dibujar_hemiciclo(conteo_del, 90, "Delegados")
+            st.pyplot(fig_del)
+        with col_ley3:
+            st.markdown("**Composición**")
+            for color in COLORES:
+                n     = conteo_del.get(color, 0)
+                pct   = round(n / 90 * 100, 1) if n > 0 else 0
+                hex_c = COLOR_HEX[color]
+                st.markdown(
+                    f'<span style="color:{hex_c};">⬤</span> '
+                    f'**{color}**: {n} ({pct}%)',
                     unsafe_allow_html=True
                 )
 
