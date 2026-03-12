@@ -393,9 +393,12 @@ def contar_diputados_por_color(distritos):
     """
     conteo = {c: 0 for c in COLORES}
     for d in distritos:
-        color = d.get("diputado")
-        if color:
-            conteo[color] += 1
+        diputado = d.get("diputado")
+        if diputado:
+            # Extraer color del string "Diputado N (Color)"
+            color = diputado.split("(")[-1].replace(")", "").strip()
+            if color in conteo:
+                conteo[color] += 1
     return conteo
 
 def contar_senadores_por_color(provincias):
@@ -406,9 +409,12 @@ def contar_senadores_por_color(provincias):
     conteo = {c: 0 for c in COLORES}
     for p in provincias:
         for cargo in ["senador_A", "senador_B"]:
-            color = p.get(cargo)
-            if color:
-                conteo[color] += 1
+            valor = p.get(cargo)
+            if valor:
+                # Extraer color del string "Senador X N (Color)"
+                color = valor.split("(")[-1].replace(")", "").strip()
+                if color in conteo:
+                    conteo[color] += 1
     return conteo
 # ══════════════════════════════════════════════
 # BLOQUE 4: Umbral de candidaturas y elecciones
