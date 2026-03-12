@@ -558,20 +558,13 @@ def eleccion_presidente_turno1(colores):
 def eleccion_presidente_delegados(provincias, ideologia_pais):
     """
     Elección presidencial por voto de delegados.
-    Cada delegado vota por su propio color si tiene candidato,
-    o redistribuye según afinidades si no lo tiene.
     Necesita 46 de 90 votos para ganar.
-    Devuelve:
-      - ganador: color ganador (o None si nadie alcanza 46)
-      - votos_por_candidato: dict {color: cantidad de votos de delegados}
-      - resultado: lista ordenada
     """
     candidatos = obtener_candidatos(ideologia_pais)
 
     if not candidatos:
         return None, {}, []
 
-    # Contar votos de delegados
     votos_delegados = {c: 0 for c in candidatos}
 
     for p in provincias:
@@ -579,18 +572,24 @@ def eleccion_presidente_delegados(provincias, ideologia_pais):
             delegado = p.get(cargo)
             if delegado is None:
                 continue
-            # Extraer el color del string "Delegado X N (Color)"
-            color_delegado = delegado.split("(")[-1].replace(")", "").strip()
+
+            # Extraer color con validación
+            try:
+                color_delegado = delegado.split("(")[-1].replace(")", "").strip()
+            except:
+                continue
+
+            # Verificar que el color sea válido
+            if color_delegado not in COLORES:
+                continue
 
             if color_delegado in candidatos:
                 votos_delegados[color_delegado] += 1
             else:
-                # Redistribuir por afinidades hacia candidatos disponibles
                 afinidades_validas = [
                     a for a in AFINIDADES[color_delegado] if a in candidatos
                 ]
                 if afinidades_validas:
-                    # El delegado vota por su primera afinidad disponible
                     votos_delegados[afinidades_validas[0]] += 1
 
     resultado = sorted(
@@ -598,7 +597,7 @@ def eleccion_presidente_delegados(provincias, ideologia_pais):
         key=lambda x: x["votos"], reverse=True
     )
 
-    ganador = resultado[0]["color"] if resultado[0]["votos"] >= VOTOS_PARA_GANAR else None
+    ganador = resultado[0]["color"] if resultado and resultado[0]["votos"] >= VOTOS_PARA_GANAR else None
 
     return ganador, votos_delegados, resultado
 
