@@ -291,7 +291,6 @@ if st.session_state.en_juego:
     pantalla_juego()
 else:
     pantalla_inicio()
-```
 
 ---
 
