@@ -258,7 +258,7 @@ def pantalla_juego():
         # ── Delegados ──
         st.markdown("### 🗳️ Delegados — 90 delegados")
         conteo_del = {c: 0 for c in COLORES}
-        for p in estado["provincias"]:
+for p in estado["provincias"]:
             for cargo in ["delegado_A", "delegado_B", "delegado_C"]:
                 d = p.get(cargo)
                 if d:
