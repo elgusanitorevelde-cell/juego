@@ -391,11 +391,9 @@ def pantalla_juego():
         presidente = estado["pais"].get("presidente", "Sin designar")
         st.markdown(f"### {presidente}")
         st.divider()
-
-        # Próximas elecciones
-        st.markdown("#### 📆 Próximas elecciones")
+st.markdown("#### 📆 Próximas elecciones")
         proximos = proximos_eventos(turno, estado["provincias"], cantidad=4)
-nombres  = {
+        nombres = {
             "diputados":  "Diputados",
             "senadores":  "Senadores",
             "delegados":  "Delegados",
@@ -417,9 +415,6 @@ nombres  = {
                 f"Turno {evento['turno']} "
                 f"(faltan **{faltan} turnos**): {tipos_texto}"
             )
-
-        st.divider()
-
         # Historial con noticias electorales expandible
         with st.expander("📰 Noticias y resultados electorales", expanded=True):
             mostrar_noticias(estado)
