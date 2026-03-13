@@ -285,33 +285,36 @@ def avanzar_tiempo(tiempo):
 def asignar_clases_senadores(provincias):
     """
     Divide las 30 provincias aleatoriamente en 3 clases iguales de 10 provincias cada una.
-    Clase 1: elección cada 48 turnos  (desde turno 1)
-    Clase 2: elección cada 96 turnos  (desde turno 97)
-    Clase 3: elección cada 144 turnos (desde turno 145)
-    Agrega la clave 'clase_senadores' a cada provincia (1, 2 o 3).
+    Clase 1: elección cada 48 turnos  (primera elección turno 48)
+    Clase 2: elección cada 96 turnos  (primera elección turno 96)
+    Clase 3: elección cada 144 turnos (primera elección turno 144)
     """
     numeros = [p["numero"] for p in provincias]
     random.shuffle(numeros)
-    clases = {
-        numeros[i]: 1 if i < 10 else 2 if i < 20 else 3
-        for i in range(30)
-    }
+    clases = {}
+    for i, numero in enumerate(numeros):
+        if i < 10:
+            clases[numero] = 1
+        elif i < 20:
+            clases[numero] = 2
+        else:
+            clases[numero] = 3
     for p in provincias:
         p["clase_senadores"] = clases[p["numero"]]
     return provincias
-
 # ── Calendario electoral ──
 def elecciones_en_turno(turno, provincias):
     """
     Determina qué elecciones ocurren en un turno dado.
-    Devuelve un dict con los eventos y las provincias afectadas.
-    Ejemplo:
-    {
-        "diputados": True,
-        "senadores": [1, 5, 12, ...],  # números de provincia
-        "delegados": True,
-        "presidente": True
-    }
+    El Turno 1 no tiene elecciones, todo fue designado aleatoriamente
+    simulando elecciones previas al inicio del juego (Opción A).
+    Calendario:
+      Diputados        → cada 48 turnos desde turno 48
+      Senadores Clase1 → cada 48 turnos desde turno 48
+      Senadores Clase2 → cada 96 turnos desde turno 96
+      Senadores Clase3 → cada 144 turnos desde turno 144
+      Delegados        → cada 94 turnos desde turno 94
+      Presidente       → cada 96 turnos desde turno 96
     """
     eventos = {
         "diputados":  False,
@@ -320,43 +323,38 @@ def elecciones_en_turno(turno, provincias):
         "presidente": False
     }
 
-    # Turno 1: elecciones iniciales
+    # Turno 1: sin elecciones, todo designado aleatoriamente
     if turno == 1:
-        eventos["diputados"] = True
-        # Solo provincias de clase 1 eligen senadores en turno 1
-        eventos["senadores"] = [
-            p["numero"] for p in provincias if p["clase_senadores"] == 1
-        ]
         return eventos
 
-    # Diputados: cada 48 turnos desde turno 1
-    if (turno - 1) % FRECUENCIA_DIPUTADOS == 0:
+    # Diputados: cada 48 turnos desde turno 48
+    if turno % FRECUENCIA_DIPUTADOS == 0:
         eventos["diputados"] = True
 
-    # Senadores Clase 1: cada 48 turnos desde turno 1
-    if (turno - 1) % FRECUENCIA_SENADORES_C1 == 0:
+    # Senadores Clase 1: cada 48 turnos desde turno 48
+    if turno % FRECUENCIA_SENADORES_C1 == 0:
         eventos["senadores"] += [
             p["numero"] for p in provincias if p["clase_senadores"] == 1
         ]
 
-    # Senadores Clase 2: cada 96 turnos desde turno 97
-    if turno >= 97 and (turno - 97) % FRECUENCIA_SENADORES_C2 == 0:
+    # Senadores Clase 2: cada 96 turnos desde turno 96
+    if turno % FRECUENCIA_SENADORES_C2 == 0:
         eventos["senadores"] += [
             p["numero"] for p in provincias if p["clase_senadores"] == 2
         ]
 
-    # Senadores Clase 3: cada 144 turnos desde turno 145
-    if turno >= 145 and (turno - 145) % FRECUENCIA_SENADORES_C3 == 0:
+    # Senadores Clase 3: cada 144 turnos desde turno 144
+    if turno % FRECUENCIA_SENADORES_C3 == 0:
         eventos["senadores"] += [
             p["numero"] for p in provincias if p["clase_senadores"] == 3
         ]
 
-    # Delegados: cada 94 turnos desde turno 95
-    if turno >= 95 and (turno - 95) % FRECUENCIA_DELEGADOS == 0:
+    # Delegados: cada 94 turnos desde turno 94
+    if turno % FRECUENCIA_DELEGADOS == 0:
         eventos["delegados"] = True
 
-    # Presidente: cada 96 turnos desde turno 97
-    if turno >= 97 and (turno - 97) % FRECUENCIA_PRESIDENTE == 0:
+    # Presidente: cada 96 turnos desde turno 96
+    if turno % FRECUENCIA_PRESIDENTE == 0:
         eventos["presidente"] = True
 
     return eventos
@@ -658,16 +656,24 @@ def eleccion_presidente_provincial(provincias, ideologia_pais):
 # BLOQUE 5: Integración
 # ══════════════════════════════════════════════
 
+def designar_cargo_aleatorio_ponderado(ideologia):
+    """
+    Designa un color aleatoriamente ponderado por su proporción
+    en la ideología del territorio.
+    Se usa para simular elecciones previas al inicio del juego.
+    """
+    colores  = list(ideologia.keys())
+    pesos    = [ideologia[c] for c in colores]
+    total    = sum(pesos)
+    pesos_norm = [p / total for p in pesos]
+    return random.choices(colores, weights=pesos_norm, k=1)[0]
+
 def inicializar_juego():
     """
     Construye el estado completo del juego en el Turno 1.
-    Ejecuta en orden:
-      1. Crea el mundo (distritos, provincias, país)
-      2. Asigna ideología a distritos, provincias y país
-      3. Asigna clases de senadores aleatoriamente
-      4. Realiza las elecciones del Turno 1
-      5. Inicializa el tiempo
-    Devuelve el estado completo del juego.
+    Todo el congreso se designa aleatoriamente de forma ponderada
+    simulando elecciones previas (Opción A — el país ya tiene historia).
+    No se realizan elecciones en el Turno 1.
     """
 
     # ── Paso 1: Crear el mundo ──
@@ -678,62 +684,54 @@ def inicializar_juego():
     provincias, ideologia_pais = asignar_ideologia_a_provincias_y_pais(provincias)
     pais["ideologia"] = ideologia_pais
 
-    # ── Paso 3: Asignar clases de senadores ──
+    # ── Paso 3: Asignar clases de senadores aleatoriamente ──
     provincias = asignar_clases_senadores(provincias)
 
-    # ── Paso 4: Elecciones del Turno 1 ──
+    # ── Paso 4: Designar congreso aleatoriamente ponderado ──
 
-    # Elecciones de distrito (diputados)
-    resultados_distritos = []
+    # Diputados
     for d in distritos:
-        resultado, nulos, ganador = eleccion_distrito(d)
-        resultados_distritos.append({
-            "distrito":  d["numero"],
-            "ganador":   ganador,
-            "resultado": resultado,
-            "nulos":     nulos
-        })
+        color = designar_cargo_aleatorio_ponderado(d["ideologia"])
+        d["diputado"] = f"Diputado {d['numero']} ({color})"
 
-    # Elecciones de provincia (senadores clase 1 únicamente)
-    resultados_provincias = []
+    # Senadores y Delegados
     for p in provincias:
-        if p["clase_senadores"] == 1:
-            resultado, nulos, senA, senB = eleccion_provincia(p)
-            resultados_provincias.append({
-                "provincia": p["numero"],
-                "senador_A": senA,
-                "senador_B": senB,
-                "resultado": resultado,
-                "nulos":     nulos
-            })
+        color_sA = designar_cargo_aleatorio_ponderado(p["ideologia"])
+        color_sB = designar_cargo_aleatorio_ponderado(p["ideologia"])
+        color_dA = designar_cargo_aleatorio_ponderado(p["ideologia"])
+        color_dB = designar_cargo_aleatorio_ponderado(p["ideologia"])
+        color_dC = designar_cargo_aleatorio_ponderado(p["ideologia"])
+        p["senador_A"]  = f"Senador A {p['numero']} ({color_sA})"
+        p["senador_B"]  = f"Senador B {p['numero']} ({color_sB})"
+        p["delegado_A"] = f"Delegado A {p['numero']} ({color_dA})"
+        p["delegado_B"] = f"Delegado B {p['numero']} ({color_dB})"
+        p["delegado_C"] = f"Delegado C {p['numero']} ({color_dC})"
 
-    # Delegados: no operan en turno 1
-
-    # Presidente: designación aleatoria en turno 1
-    presidente_color = eleccion_presidente_turno1(COLORES)
-    pais["presidente"] = f"Presidente ({presidente_color})"
+    # Presidente
+    color_pres = designar_cargo_aleatorio_ponderado(ideologia_pais)
+    pais["presidente"] = f"Presidente ({color_pres})"
 
     # ── Paso 5: Inicializar tiempo ──
     tiempo = inicializar_tiempo()
 
     # ── Paso 6: Variables secundarias ──
-    conteo_diputados  = contar_diputados_por_color(distritos)
-    conteo_senadores  = contar_senadores_por_color(provincias)
+    conteo_diputados = contar_diputados_por_color(distritos)
+    conteo_senadores = contar_senadores_por_color(provincias)
 
     # ── Estado completo del juego ──
     return {
-        "tiempo":               tiempo,
-        "distritos":            distritos,
-        "provincias":           provincias,
-        "pais":                 pais,
-        "conteo_diputados":     conteo_diputados,
-        "conteo_senadores":     conteo_senadores,
-        "resultados_distritos": resultados_distritos,
-        "resultados_provincias":resultados_provincias,
+        "tiempo":                   tiempo,
+        "distritos":                distritos,
+        "provincias":               provincias,
+        "pais":                     pais,
+        "conteo_diputados":         conteo_diputados,
+        "conteo_senadores":         conteo_senadores,
+        "resultados_distritos":     [],
+        "resultados_provincias":    [],
         "pendiente_segunda_vuelta": False,
         "log": [
-            f"Turno 1 — {turno_a_fecha(1)['texto']}: Juego inicializado.",
-            f"Presidente designado aleatoriamente: {presidente_color}."
+            f"Turno 1 — {turno_a_fecha(1)['texto']}: El país ya tiene historia.",
+            f"Congreso designado aleatoriamente. Presidente: {color_pres}."
         ]
     }
 
