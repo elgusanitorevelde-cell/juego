@@ -395,17 +395,21 @@ def pantalla_juego():
         # Próximas elecciones
         st.markdown("#### 📆 Próximas elecciones")
         proximos = proximos_eventos(turno, estado["provincias"], cantidad=4)
-        nombres  = {
+nombres  = {
             "diputados":  "Diputados",
             "senadores":  "Senadores",
             "delegados":  "Delegados",
-            "presidente": "Presidente"
+            "presidente": "Presidente",
+            "asuncion":   "Asunción Presidencial"
         }
         for evento in proximos:
             tipos = evento["eventos"]
             tipos_texto = ", ".join(
                 nombres[k] for k, v in tipos.items()
-                if (v and k != "senadores") or (k == "senadores" and v)
+                if k in nombres and (
+                    (k != "senadores" and v) or
+                    (k == "senadores" and v)
+                )
             )
             faltan = evento["turno"] - turno
             st.markdown(
