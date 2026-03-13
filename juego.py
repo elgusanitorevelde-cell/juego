@@ -391,7 +391,7 @@ def pantalla_juego():
         presidente = estado["pais"].get("presidente", "Sin designar")
         st.markdown(f"### {presidente}")
         st.divider()
-st.markdown("#### 📆 Próximas elecciones")
+        st.markdown("#### 📆 Próximas elecciones")
         proximos = proximos_eventos(turno, estado["provincias"], cantidad=4)
         nombres = {
             "diputados":  "Diputados",
