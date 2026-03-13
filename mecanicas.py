@@ -237,7 +237,7 @@ FRECUENCIA_SENADORES_C2 = 96
 FRECUENCIA_SENADORES_C3 = 144
 FRECUENCIA_DELEGADOS    = 94
 FRECUENCIA_PRESIDENTE   = 96
-
+TURNO_ASUNCION_PRESIDENTE = 2  # Turnos después de la elección que asume el presidente electo
 # ── Variables primarias ──
 def inicializar_tiempo():
     """
@@ -306,24 +306,20 @@ def asignar_clases_senadores(provincias):
 def elecciones_en_turno(turno, provincias):
     """
     Determina qué elecciones ocurren en un turno dado.
-    El Turno 1 no tiene elecciones, todo fue designado aleatoriamente
-    simulando elecciones previas al inicio del juego (Opción A).
     Calendario:
-      Diputados        → cada 48 turnos desde turno 48
-      Senadores Clase1 → cada 48 turnos desde turno 48
-      Senadores Clase2 → cada 96 turnos desde turno 96
-      Senadores Clase3 → cada 144 turnos desde turno 144
-      Delegados        → cada 94 turnos desde turno 94
-      Presidente       → cada 96 turnos desde turno 96
+      Turno 94  → Delegados + votación presidencial
+      Turno 95  → Elección contingente (solo si nadie obtuvo 46 votos)
+      Turno 96  → Asunción del presidente electo
+      Turno 144 → Senadores Clase 3 (primera vez)
     """
     eventos = {
-        "diputados":  False,
-        "senadores":  [],
-        "delegados":  False,
-        "presidente": False
+        "diputados":   False,
+        "senadores":   [],
+        "delegados":   False,
+        "presidente":  False,
+        "asuncion":    False
     }
 
-    # Turno 1: sin elecciones, todo designado aleatoriamente
     if turno == 1:
         return eventos
 
@@ -349,16 +345,18 @@ def elecciones_en_turno(turno, provincias):
             p["numero"] for p in provincias if p["clase_senadores"] == 3
         ]
 
-    # Delegados: cada 94 turnos desde turno 94
-    if turno % FRECUENCIA_DELEGADOS == 0:
-        eventos["delegados"] = True
-
-    # Presidente: cada 96 turnos desde turno 96
-    if turno % FRECUENCIA_PRESIDENTE == 0:
+    # Delegados + votación presidencial: cada 96 turnos desde turno 94
+    # Turno 94, 190, 286...
+    if (turno - 94) >= 0 and (turno - 94) % FRECUENCIA_PRESIDENTE == 0:
+        eventos["delegados"]  = True
         eventos["presidente"] = True
 
-    return eventos
+    # Asunción del presidente electo: 2 turnos después de la elección
+    # Turno 96, 192, 288...
+    if (turno - 96) >= 0 and (turno - 96) % FRECUENCIA_PRESIDENTE == 0:
+        eventos["asuncion"] = True
 
+    return eventos
 def proximos_eventos(turno, provincias, cantidad=3):
     """
     Devuelve los próximos eventos electorales a partir del turno dado.
@@ -707,9 +705,10 @@ def inicializar_juego():
         p["delegado_B"] = f"Delegado B {p['numero']} ({color_dB})"
         p["delegado_C"] = f"Delegado C {p['numero']} ({color_dC})"
 
-    # Presidente
+   # Presidente
     color_pres = designar_cargo_aleatorio_ponderado(ideologia_pais)
-    pais["presidente"] = f"Presidente ({color_pres})"
+    pais["presidente"]        = f"Presidente ({color_pres})"
+    pais["presidente_electo"] = None
 
     # ── Paso 5: Inicializar tiempo ──
     tiempo = inicializar_tiempo()
@@ -737,9 +736,10 @@ def inicializar_juego():
 def avanzar_turno(estado):
     """
     Avanza el juego un turno.
-    Verifica el calendario electoral y ejecuta
-    las elecciones que correspondan.
-    Devuelve el estado actualizado.
+    Flujo presidencial:
+      Turno 94 → Elección de delegados + votación presidencial
+      Turno 95 → Elección contingente si nadie obtuvo 46 votos
+      Turno 96 → Asunción del presidente electo
     """
     # Avanzar tiempo
     estado["tiempo"] = avanzar_tiempo(estado["tiempo"])
@@ -751,17 +751,20 @@ def avanzar_turno(estado):
     provincias = estado["provincias"]
     pais       = estado["pais"]
 
-    # Limpiar resultados anteriores
+    # Limpiar resultados del turno anterior
     estado["ultimo_resultado_legislativo"] = None
     estado["ultimo_resultado_delegados"]   = None
     estado["ultimo_resultado_presidente"]  = None
 
-    # Verificar segunda vuelta presidencial pendiente
+    # Consultar calendario electoral
+    eventos = elecciones_en_turno(turno, provincias)
+
+    # ── Elección contingente (turno 95) ──
     if estado.get("pendiente_segunda_vuelta"):
         ganador, votos, resultado = eleccion_presidente_provincial(
             provincias, pais["ideologia"]
         )
-        pais["presidente"] = f"Presidente ({ganador})"
+        pais["presidente_electo"] = ganador
         estado["pendiente_segunda_vuelta"] = False
         estado["ultimo_resultado_presidente"] = {
             "tipo":      "provincial",
@@ -769,10 +772,20 @@ def avanzar_turno(estado):
             "resultado": resultado,
             "votos":     votos
         }
-        log_turno.append(f"Segunda vuelta presidencial: ganador {ganador}.")
+        log_turno.append(
+            f"Elección contingente: {ganador} designado Presidente Electo. "
+            f"Asumirá funciones en el próximo turno de asunción."
+        )
 
-    # Consultar calendario electoral
-    eventos = elecciones_en_turno(turno, provincias)
+    # ── Asunción del presidente electo (turno 96) ──
+    if eventos["asuncion"]:
+        presidente_electo = pais.get("presidente_electo")
+        if presidente_electo:
+            pais["presidente"] = f"Presidente ({presidente_electo})"
+            pais["presidente_electo"] = None
+            log_turno.append(
+                f"Asunción presidencial: {presidente_electo} asume como Presidente."
+            )
 
     # ── Elecciones de diputados ──
     if eventos["diputados"]:
@@ -787,13 +800,6 @@ def avanzar_turno(estado):
             })
         estado["resultados_distritos"] = resultados_distritos
         estado["conteo_diputados"]     = contar_diputados_por_color(distritos)
-
-        # Guardar composición legislativa
-        estado["ultimo_resultado_legislativo"] = {
-            "tipo":             "diputados",
-            "conteo_diputados": contar_diputados_por_color(distritos),
-            "conteo_senadores": contar_senadores_por_color(provincias)
-        }
         log_turno.append("Elecciones de Diputados realizadas.")
 
     # ── Elecciones de senadores ──
@@ -811,24 +817,20 @@ def avanzar_turno(estado):
                 })
         estado["resultados_provincias"] = resultados_provincias
         estado["conteo_senadores"]      = contar_senadores_por_color(provincias)
-
-        # Guardar composición legislativa
-        estado["ultimo_resultado_legislativo"] = {
-            "tipo":             "senadores",
-            "conteo_diputados": contar_diputados_por_color(distritos),
-            "conteo_senadores": contar_senadores_por_color(provincias)
-        }
         log_turno.append("Elecciones de Senadores realizadas.")
 
-    # ── Si hubo tanto diputados como senadores ──
-    if eventos["diputados"] and eventos["senadores"]:
+    # ── Actualizar resultado legislativo ──
+    if eventos["diputados"] or eventos["senadores"]:
+        tipo = "ambos" if eventos["diputados"] and eventos["senadores"] \
+               else "diputados" if eventos["diputados"] \
+               else "senadores"
         estado["ultimo_resultado_legislativo"] = {
-            "tipo":             "ambos",
+            "tipo":             tipo,
             "conteo_diputados": contar_diputados_por_color(distritos),
             "conteo_senadores": contar_senadores_por_color(provincias)
         }
 
-    # ── Elecciones de delegados ──
+    # ── Elecciones de delegados + votación presidencial ──
     if eventos["delegados"]:
         for p in provincias:
             eleccion_delegados(p)
@@ -847,20 +849,22 @@ def avanzar_turno(estado):
         }
         log_turno.append("Elecciones de Delegados realizadas.")
 
-    # ── Elecciones de presidente ──
     if eventos["presidente"]:
         ganador, votos, resultado = eleccion_presidente_delegados(
             provincias, pais["ideologia"]
         )
         if ganador:
-            pais["presidente"] = f"Presidente ({ganador})"
+            pais["presidente_electo"] = ganador
             estado["ultimo_resultado_presidente"] = {
                 "tipo":      "delegados",
                 "ganador":   ganador,
                 "resultado": resultado,
                 "votos":     votos
             }
-            log_turno.append(f"Elección presidencial: ganador {ganador}.")
+            log_turno.append(
+                f"Votación presidencial: {ganador} designado Presidente Electo. "
+                f"Asumirá funciones en turno {turno + 2}."
+            )
         else:
             estado["pendiente_segunda_vuelta"] = True
             estado["ultimo_resultado_presidente"] = {
@@ -870,8 +874,8 @@ def avanzar_turno(estado):
                 "votos":     votos
             }
             log_turno.append(
-                "Elección presidencial: ningún candidato alcanzó 46 votos. "
-                "Segunda vuelta el próximo turno."
+                "Votación presidencial: ningún candidato alcanzó 46 votos. "
+                "Elección contingente el próximo turno."
             )
 
     estado["log"] = estado["log"] + log_turno
