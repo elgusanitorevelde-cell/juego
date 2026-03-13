@@ -227,76 +227,124 @@ def pantalla_inicio():
 # NOTICIAS ELECTORALES
 # ══════════════════════════════════════════════
 def mostrar_noticias(estado):
-    log = estado.get("log", [])
-    noticias = [l for l in log if "Elección" in l or "elección" in l
-                or "Diputados" in l or "Senadores" in l or "Delegados" in l
-                or "Presidente" in l]
 
-    if not noticias:
-        st.markdown("_Sin noticias electorales aún._")
-        return
+    hay_noticias = False
 
-    # Última noticia destacada
-    ultima = noticias[-1]
-    st.markdown(
-        f'<div class="noticia-box">📰 <b>Noticias de última hora:</b> {ultima}</div>',
-        unsafe_allow_html=True
-    )
+    # ── Resultado legislativo ──
+    res_leg = estado.get("ultimo_resultado_legislativo")
+    if res_leg:
+        hay_noticias = True
+        tipo = res_leg["tipo"]
 
-    # Resultados de diputados
-    conteo_d = estado.get("conteo_diputados", {})
-    if any(v > 0 for v in conteo_d.values()):
-        st.markdown("**🏠 Diputados obtenidos por color:**")
-        for color in COLORES:
-            n = conteo_d.get(color, 0)
-            if n > 0:
-                hex_c = COLOR_HEX[color]
-                pct   = round(n / 150 * 100, 1)
-                st.markdown(
-                    f'<span style="color:{hex_c};">⬤</span> '
-                    f'**{color}**: {n} diputados ({pct}%)',
-                    unsafe_allow_html=True
-                )
+        if tipo == "diputados":
+            titulo = "Elecciones Legislativas — Nueva composición de la Cámara de Diputados"
+        elif tipo == "senadores":
+            titulo = "Elecciones Legislativas — Nueva composición del Senado"
+        else:
+            titulo = "Elecciones Legislativas — Nueva composición del Congreso"
 
-    # Resultados de senadores
-    conteo_s = estado.get("conteo_senadores", {})
-    total_s  = sum(conteo_s.values())
-    if total_s > 0:
-        st.markdown("**🏛️ Senadores obtenidos por color:**")
-        for color in COLORES:
-            n = conteo_s.get(color, 0)
-            if n > 0:
-                hex_c = COLOR_HEX[color]
-                pct   = round(n / 60 * 100, 1)
-                st.markdown(
-                    f'<span style="color:{hex_c};">⬤</span> '
-                    f'**{color}**: {n} senadores ({pct}%)',
-                    unsafe_allow_html=True
-                )
+        st.markdown(
+            f'<div class="noticia-box">📰 <b>Noticias de última hora:</b> {titulo}</div>',
+            unsafe_allow_html=True
+        )
 
-    # Resultados de delegados
-    conteo_del = {c: 0 for c in COLORES}
-    for p in estado["provincias"]:
-        for cargo in ["delegado_A", "delegado_B", "delegado_C"]:
-            d = p.get(cargo)
-            if d:
-                color = d.split("(")[-1].replace(")", "").strip()
-                if color in conteo_del:
-                    conteo_del[color] += 1
-    total_del = sum(conteo_del.values())
-    if total_del > 0:
-        st.markdown("**🗳️ Delegados obtenidos por color:**")
+        # Diputados
+        if tipo in ["diputados", "ambos"]:
+            conteo_d = res_leg["conteo_diputados"]
+            st.markdown("**🏠 Cámara de Diputados:**")
+            for color in COLORES:
+                n = conteo_d.get(color, 0)
+                if n > 0:
+                    pct   = round(n / 150 * 100, 1)
+                    hex_c = COLOR_HEX[color]
+                    st.markdown(
+                        f'<span style="color:{hex_c};">⬤</span> '
+                        f'**{color}**: {n} escaños ({pct}%)',
+                        unsafe_allow_html=True
+                    )
+
+        # Senadores
+        if tipo in ["senadores", "ambos"]:
+            conteo_s = res_leg["conteo_senadores"]
+            total_s  = sum(conteo_s.values())
+            st.markdown("**🏛️ Senado:**")
+            for color in COLORES:
+                n = conteo_s.get(color, 0)
+                if n > 0:
+                    pct   = round(n / 60 * 100, 1)
+                    hex_c = COLOR_HEX[color]
+                    st.markdown(
+                        f'<span style="color:{hex_c};">⬤</span> '
+                        f'**{color}**: {n} escaños ({pct}%)',
+                        unsafe_allow_html=True
+                    )
+
+    # ── Resultado delegados ──
+    res_del = estado.get("ultimo_resultado_delegados")
+    if res_del:
+        hay_noticias = True
+        st.markdown(
+            '<div class="noticia-box">📰 <b>Noticias de última hora:</b> '
+            'Composición del Colegio de Delegados</div>',
+            unsafe_allow_html=True
+        )
+        conteo_del = res_del["conteo_delegados"]
         for color in COLORES:
             n = conteo_del.get(color, 0)
             if n > 0:
-                hex_c = COLOR_HEX[color]
                 pct   = round(n / 90 * 100, 1)
+                hex_c = COLOR_HEX[color]
                 st.markdown(
                     f'<span style="color:{hex_c};">⬤</span> '
                     f'**{color}**: {n} delegados ({pct}%)',
                     unsafe_allow_html=True
                 )
 
+    # ── Resultado presidencial ──
+    res_pres = estado.get("ultimo_resultado_presidente")
+    if res_pres:
+        hay_noticias = True
+        ganador = res_pres.get("ganador")
+        tipo    = res_pres.get("tipo")
+
+        if tipo == "delegados_sin_ganador":
+            st.markdown(
+                '<div class="noticia-box">📰 <b>Noticias de última hora:</b> '
+                'Elección Presidencial — Ningún candidato alcanzó 46 votos. '
+                'Se convoca segunda vuelta provincial.</div>',
+                unsafe_allow_html=True
+            )
+        elif tipo == "provincial":
+            st.markdown(
+                f'<div class="noticia-box">📰 <b>Noticias de última hora:</b> '
+                f'Segunda Vuelta Presidencial — Ganador: <b>{ganador}</b></div>',
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f'<div class="noticia-box">📰 <b>Noticias de última hora:</b> '
+                f'Elección Presidencial — Ganador: <b>{ganador}</b></div>',
+                unsafe_allow_html=True
+            )
+
+        # Resultado detallado por candidato
+        resultado = res_pres.get("resultado", [])
+        if resultado:
+            st.markdown("**Resultado por candidato:**")
+            total_votos = sum(r["votos"] for r in resultado)
+            for r in resultado:
+                color  = r["color"]
+                votos  = r["votos"]
+                pct    = round(votos / total_votos * 100, 1) if total_votos > 0 else 0
+                hex_c  = COLOR_HEX.get(color, "#ffffff")
+                st.markdown(
+                    f'<span style="color:{hex_c};">⬤</span> '
+                    f'**{color}**: {votos} votos ({pct}%)',
+                    unsafe_allow_html=True
+                )
+
+    if not hay_noticias:
+        st.markdown("_Sin noticias electorales en el turno actual._")
 # ══════════════════════════════════════════════
 # PANTALLA DE JUEGO
 # ══════════════════════════════════════════════
